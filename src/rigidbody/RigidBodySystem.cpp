@@ -95,12 +95,26 @@ void RigidBodySystem::step(float dt)
     //
     calcConstraintForces(dt);
 
-    // TODO Perform numerical integration to first update the velocities of each rigid body in @a m_bodies, 
+    // TODORBT Perform numerical integration to first update the velocities of each rigid body in @a m_bodies, 
     //      followed by the positions and orientations.
     //
     for(RigidBody* b : m_bodies)
     {
+        if (b->fixed) {
+            b->xdot = Eigen::Vector3f::Zero();
+            b->omega = Eigen::Vector3f::Zero();
+            continue;
+        }
+        // velocity
+        b->xdot += dt * (1.0f / b->mass) * (b->f + b->fc);
+        b->omega += dt * b->Iinv * (b->tau + b->tauc - b->omega.cross(b->I * b->omega));
 
+        // position
+        b->x += dt * b->xdot;
+
+        // rotation
+        b->q.coeffs() += dt * kinematicMap(b->q, b->omega).coeffs();
+        b->q.normalize();
     }
 }
 

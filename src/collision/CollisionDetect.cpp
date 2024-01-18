@@ -108,7 +108,7 @@ void CollisionDetect::collisionDetectSphereSphere(RigidBody* body0, RigidBody* b
 
 void CollisionDetect::collisionDetectSphereBox(RigidBody* body0, RigidBody* body1)
 {
-    // TODO Implement sphere-box collision detection.
+    // TODORBT Implement sphere-box collision detection.
     //      The function should check if a collision exists.
     // 
     //      If it does, compute the contact normal, contact point, and penetration depth and
@@ -118,4 +118,42 @@ void CollisionDetect::collisionDetectSphereBox(RigidBody* body0, RigidBody* body
     Sphere* sphere = dynamic_cast<Sphere*>(body0->geometry.get());
     Box* box = dynamic_cast<Box*>(body1->geometry.get());
 
+    Eigen::Vector3f pos_loc = body1->q.inverse() * (body0->x - body1->x);
+
+    Eigen::Vector3f g;
+    Eigen::Vector3f bdim_half = box->dim * 0.5f;
+    float dphi = std::numeric_limits<float>::max();
+    for(int i=0; i < 3; i++){
+        float v = pos_loc[i];
+        v = (std::max)(v, -bdim_half[i]);
+        v = (std::min)(v, bdim_half[i]);
+        g[i] = v;
+    }
+
+    if((g - pos_loc).norm() > 1e-6){
+        Eigen::Vector3f normal = Eigen::Vector3f::Zero();
+        float phi = (g - pos_loc).norm() - sphere->radius;
+        if(phi < 0){
+            normal = body1->q * (pos_loc - g);
+            normal.normalize();
+            m_contacts.push_back( new Contact(body0, body1, body1->q * g + body1->x, normal, phi) );
+        }
+    }else{
+        float phi = std::numeric_limits<float>::max();
+        Eigen::Vector3f normal = Eigen::Vector3f::Zero();
+        for(int i = 0; i < 3; i++){
+            if(abs(bdim_half[i] - pos_loc[i]) < phi){
+                phi = abs(bdim_half[i] - pos_loc[i]);
+                normal = Eigen::Vector3f::Unit(i);
+                g = pos_loc + normal * phi;
+            }
+            if(abs(bdim_half[i] + pos_loc[i]) < phi){
+                phi = abs(bdim_half[i] + pos_loc[i]);
+                normal = -Eigen::Vector3f::Unit(i);
+                g = pos_loc + normal * phi;
+            }
+        }
+        phi = -phi;
+        m_contacts.push_back( new Contact(body0, body1, body1->q * g + body1->x, normal, phi) );
+    }
 }

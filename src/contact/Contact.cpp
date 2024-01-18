@@ -35,17 +35,23 @@ void Contact::computeContactFrame()
     //  The first bases direction is given by the normal, n.
     //  Use it to compute the other two directions.
 
-    // TODO Compute first tangent direction t1
+    // TODORBT Compute first tangent direction t1
     //
+    if(n.x() < 0.1){
+        t1 = Eigen::Vector3f(1,0,0);
+    }else{
+        t1 = Eigen::Vector3f(0,1,0);
+    }
 
 
-    // TODO Compute second tangent direction t2.
+    // TODORBT Compute second tangent direction t2.
     //
+    t2 = n.cross(t1).normalized();
 }
 
 void Contact::computeJacobian()
 {
-    // TODO Compute the Jacobians J0 and J1 
+    // TODORBT Compute the Jacobians J0 and J1 
     // for body0 and body1, respectively.
     // 
     //
@@ -55,6 +61,31 @@ void Contact::computeJacobian()
     // However, together with the contact Jacobians J0 and J1, these will
     //   be used by the solver to assemble the blocked LCP matrices.
     //
+    Eigen::Vector3f ra = p - body0->x;
+    Eigen::Vector3f rb = p - body1->x;
+
+    Eigen::Matrix3f rax, rbx;
+    rax << 0, -ra.z(), ra.y(),
+        ra.z(), 0, -ra.x(),
+        -ra.y(), ra.x(), 0;
+    rbx << 0, -rb.z(), rb.y(),
+        rb.z(), 0, -rb.x(),
+        -rb.y(), rb.x(), 0;
+
+    J0.block<1, 3>(0, 0) = n.transpose();
+    J0.block<1, 3>(1, 0) = t1.transpose();
+    J0.block<1, 3>(2, 0) = t2.transpose();
+    J0.block<1, 3>(0, 3) = -n.transpose() * rax;
+    J0.block<1, 3>(1, 3) = -t1.transpose() * rax;
+    J0.block<1, 3>(2, 3) = -t2.transpose() * rax;
+
+    J1.block<1, 3>(0, 0) = -n.transpose();
+    J1.block<1, 3>(1, 0) = -t1.transpose();
+    J1.block<1, 3>(2, 0) = -t2.transpose();
+    J1.block<1, 3>(0, 3) = n.transpose() * rbx;
+    J1.block<1, 3>(1, 3) = t1.transpose() * rbx;
+    J1.block<1, 3>(2, 3) = t2.transpose() * rbx;
+
     J0Minv.block(0,0,3,3) = (1.0f/body0->mass) * J0.block(0, 0, 3, 3);
     J0Minv.block(0,3,3,3) = J0.block(0, 3, 3, 3) * body0->Iinv;
     J1Minv.block(0,0,3,3) = (1.0f/body1->mass) * J1.block(0, 0, 3, 3);
